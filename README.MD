@@ -132,7 +132,7 @@ message Job {
 
 ## Data Flow Architecture
 
-### Job Lifecycle with Authorization
+### Job Lifecycle
 
 ![Job Lifecycle](docs/job-worker-job-lifecycle.drawio.png)
 
