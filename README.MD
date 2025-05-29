@@ -2,16 +2,20 @@
 
 ![general-arch](docs/job-worker-general.drawio.svg)
 
-## Executive Summary
+## Summary
 
-The Job Worker is an enterprise-grade distributed system for executing and managing computational jobs across host machines. It provides a secure gRPC-based service with comprehensive resource management using Linux cgroups, real-time log streaming, and role-based access control. The system features mutual TLS authentication with certificate-based authorization, ensuring secure multi-tenant job execution with proper operational separation.
+The Job Worker Service is a gRPC-based system for executing and managing system processes with resource constraints
+using Linux cgroups. It provides secure, isolated execution of commands with CPU, memory, and I/O limitations, featuring
+real-time log streaming and comprehensive job lifecycle management.
 
-**Key Capabilities:**
-- Secure job execution with resource isolation (CPU, Memory, I/O)
-- Role-based access control (Admin/Viewer permissions)
-- Real-time log streaming with multi-client support
-- Binary-safe output handling
-- Enterprise-grade security with mTLS and strong cryptography
+### Core
+
+* **Resource Isolation:** Leverage Linux cgroups v2 for strict resource enforcement
+* **Real-time Monitoring:** Provide live log streaming and status updates via gRPC streams
+* **Security-First:** Implement mTLS authentication with role-based access control
+* **Graceful Degradation:** Continue operation even if some resource controls fail
+* **Pub/Sub Architecture:** Decouple log collection from distribution using publisher-subscriber pattern
+
 
 ## System Architecture
 
@@ -19,68 +23,37 @@ The Job Worker is an enterprise-grade distributed system for executing and manag
 
 ![High-level-arch](docs/job-worker-high-level.drawio.png)
 
-### Core Components
+## Design Approach
 
-#### 1. gRPC Service Layer
-- **Purpose**: Secure client communications with role-based authorization
-- **Key Features**:
-  - Mutual TLS authentication with client certificate verification
-  - Role-based access control (Admin/Viewer)
-  - Message size limits (512KB receive, 4MB send)
-  - TLS 1.3 with enterprise-grade cipher suites
-  - Operation-level authorization enforcement
+## Scope
 
-#### 2. Job Management Engine
-- **Purpose**: Core job execution and lifecycle management
-- **Responsibilities**:
-  - Process creation with resource limits
-  - Child process management and cleanup
-  - Status tracking and updates
-  - Integration with cgroup resource controls
+### In Scope
 
-#### 3. Resource Management System
-- **Purpose**: Linux cgroups v2 integration for resource isolation
-- **Capabilities**:
-  - CPU limits via `cpu.max` (percentage based)
-  - Memory limits via `memory.max` and `memory.high`
-  - I/O bandwidth limits via `io.max`
-  - Automatic cleanup and process termination
+* **Job Management:** Create, start, stop, list, and monitor jobs
+* **Resource Control:** CPU, memory, and I/O bandwidth limiting via cgroups
+* **Real-time Logging:** Live stdout/stderr streaming to multiple subscribers
+* **Security:** Mutual TLS with certificate-based role authorization
+* **CLI Interface:** Command-line client
+* **Process Groups:** Proper cleanup of child processes
 
-#### 4. Data Store & Pub/Sub System
-- **Purpose**: Thread-safe job state management with real-time updates
-- **Features**:
-  - In-memory job storage with concurrent access
-  - Publisher/Subscriber pattern for real-time updates
-  - Binary-safe log buffering
-  - Multi-client streaming support (up to 50 concurrent)
+### Out of Scope
 
-#### 5. Output Management System
-- **Purpose**: Captures and streams process output
-- **Features**:
-  - Real-time stdout/stderr capture
-  - Binary-safe data handling
-  - Efficient streaming without polling
-  - Historical log replay capability
+* Job scheduling/queuing (single worker model)
+* Persistent storage (in-memory only)
+* Multi-node deployment
 
-#### 6. Authorization System
-- **Purpose**: Certificate-based role extraction and access control
-- **Features**:
-  - Multi-method role detection (OU, SAN, CN)
-  - Operation-level permission enforcement
-  - Admin and Viewer role separation
-  - Backward compatibility support
+## Edge Cases Handled
 
-#### 7. CLI Client
-- **Purpose**: Command-line interface with role-aware operations
-- **Features**:
-  - Full job lifecycle management
-  - Real-time log streaming
-  - Flexible parameter handling
-  - Role-appropriate error messaging
+* **Orphaned Processes:** Process groups ensure all children are terminated
+* **Cgroup Failures:** Continue execution with logging warnings
+* **Stream Subscribers:** Auto-cleanup of stalled/slow subscribers (5s timeout)
+* **Resource Cleanup:** Async cgroup cleanup with timeout protection
+* **Graceful Shutdown:** Signal handling for clean server termination
+* **Certificate Validation:** Multiple fallback methods for role extraction (OU, SAN, CN)
 
 ## API Design
 
-### Protocol Buffer Schema
+### gRPC Service Definition
 
 ```protobuf
 syntax = "proto3";
@@ -92,7 +65,11 @@ service JobService {
   rpc GetJobs(EmptyRequest) returns (Jobs) {}             // Admin + Viewer
   rpc GetJobsStream(JobReq) returns (stream DataChunk) {} // Admin + Viewer
 }
+```
 
+### Job Model
+
+```protobuf
 message Job {
   string id = 1;                // System-generated unique ID (Unix Nano timestamp)
   string command = 2;           // Executable command
@@ -111,40 +88,42 @@ message Job {
 
 ### Authorization Chart
 
-| Operation | Admin Role | Viewer Role | Description |
-|-----------|------------|-------------|-------------|
-| CreateJob | ALLOW      | DENY        | Start new jobs with resource limits |
-| GetJob    | ALLOW      | ALLOW       | Retrieve job details and status |
-| StopJob   | ALLOW      | DENY        | Terminate running jobs |
-| GetJobs   | ALLOW      | ALLOW       | List all jobs with basic info |
-| StreamLogs| ALLOW      | ALLOW       | Real-time log streaming |
+| Operation  | Admin Role | Viewer Role | Description                         |
+|------------|------------|-------------|-------------------------------------|
+| CreateJob  | ALLOW      | DENY        | Start new jobs with resource limits |
+| GetJob     | ALLOW      | ALLOW       | Retrieve job details and status     |
+| StopJob    | ALLOW      | DENY        | Terminate running jobs              |
+| GetJobs    | ALLOW      | ALLOW       | List all jobs with basic info       |
+| StreamLogs | ALLOW      | ALLOW       | Real-time log streaming             |
 
 ## Security Architecture
 
 ### Certificate-Based Role Management
 
 #### Role Types and Detection
+
 - **Admin Role**: Full system access with job management capabilities
-  - **Detection Methods**:
-    - `OU=Admin` in certificate subject
-    - `admin.*.local` in Subject Alternative Names
-    - "admin" substring in Common Name
-  - **Permissions**: All operations (CRUD + streaming)
+    - **Detection Methods**:
+        - `OU=Admin` in certificate subject
+        - `admin.*.local` in Subject Alternative Names
+        - "admin" substring in Common Name
+    - **Permissions**: All operations (CRUD + streaming)
 
 - **Viewer Role**: Read-only access for monitoring
-  - **Detection Methods**:
-    - `OU=Viewer` in certificate subject
-    - `viewer.*.local` in Subject Alternative Names
-    - "viewer" substring in Common Name
-  - **Permissions**: Get, List, Stream operations only
+    - **Detection Methods**:
+        - `OU=Viewer` in certificate subject
+        - `viewer.*.local` in Subject Alternative Names
+        - "viewer" substring in Common Name
+    - **Permissions**: Get, List, Stream operations only
 
 #### Certificate Infrastructure
 
 #### TLS Configuration
+
 - **Version**: TLS 1.3 minimum
 - **Authentication**: Mutual TLS with mandatory client certificates
 - **Cipher Suites**: Modern `ECDHE with AES-GCM` and `ChaCha20-Poly1305`
-- **Key Strengths**: `4096-bit` CA, `2048-bit` client keys
+- **Key Strengths**: `4096-bit` CA, `2048-bit` clients keys (admin/viewer)
 - **Certificate Lifetime**: `365` days with renewal processes
 
 ### Authorization Flow
@@ -166,65 +145,95 @@ message Job {
 ### Linux Cgroups v2 Integration
 
 #### CPU Management
+
 - **Control File**: `cpu.max`
 - **Format**: `<microseconds> <period>` (e.g., "50000 100000" = 50%)
 - **Fallback**: `cpu.weight` for alternative implementations
 - **Default Limit**: 10% of one CPU core
 
 #### Memory Management
+
 - **Hard Limit**: `memory.max` (absolute ceiling)
 - **Soft Limit**: `memory.high` (90% of max for early warnings)
 - **Units**: Bytes (converted from MB input)
 - **Default Limit**: 1MB
 
 #### I/O Management
+
 - **Control File**: `io.max`
 - **Multiple Format Support**: Device-specific bandwidth limits
 - **Strategies**: Multiple format attempts for device compatibility
 - **Default**: Unlimited (0 value)
 
 ### Process Isolation
+
 - **Process Groups**: Each job runs in dedicated process group
 - **Child Process Handling**: Negative PID kills for complete cleanup
-- **Signal escalation**: SIGTERM → SIGKILL for graceful/forced termination
+- **Signal escalation**: `SIGTERM` → `SIGKILL` for graceful/forced termination
 - **Resource Enforcement**: Cgroup limits prevent resource abuse
 
 ## Performance and Scalability
 
 ### Concurrent Operations
+
 - **Thread Safety**: Mutex-protected data structures throughout
-- **Streaming Clients**: Up to 50 concurrent subscribers per job
+- **Streaming Clients**: Up to `50` concurrent subscribers per job
 - **Goroutine Management**: Active monitoring and leak prevention
-- **Buffer Management**: Configurable log buffer sizes (1000 lines default)
+- **Buffer Management**: Configurable log buffer sizes (`1000` lines default)
 
 ### Resource Limits and Safeguards
-- **gRPC Message Sizes**: 512KB receive, 4MB send limits
-- **Header Size Limits**: 1MB maximum header list size
-- **Timeout Management**: 5-second subscriber timeout for stalled clients
+
+- **gRPC Message Sizes**: `512KB` receive, `4MB` send limits
+- **Header Size Limits**: `1MB` maximum header list size
+- **Timeout Management**: `5` second subscriber timeout for stalled clients
 - **Memory Management**: Bounded log buffers prevent unbounded growth
 
 ### Monitoring and Observability
-- **Comprehensive Logging**: INFO, WARN, ERROR, DEBUG levels
-- **Goroutine Tracking**: Periodic monitoring with automatic dumps
+
+- **Comprehensive Logging**: `INFO`, `WARN`, `ERROR`, `DEBUG` levels
 - **Operation Logging**: All authorization decisions logged
 - **Performance Metrics**: Job timing, resource usage tracking
 
 ## CLI Design and Usage
 
 ### Command Structure
-TBD
+
+```text
+Commands:
+  create  Create and start a new job (Admin only)
+  get     Get detailed job information by ID
+  list    List all jobs with basic information  
+  stop    Stop a running job by ID (Admin only)
+  stream  Stream real-time job logs by ID
+```
 
 ### Role-Based Command Examples
 
 #### Admin Client Operations
-TBD
+
+```bash
+  ./cli list                   # Success
+  ./cli get -i job-12345       # Success  
+  ./cli stream -i job-12345    # Success
+  ./cli create -c "echo test"  # Success
+  ./cli stop -i job-12345      # Success
+```
 
 #### Viewer Client Operations
-TBD
+
+```bash
+  ./cli list                   # Success
+  ./cli get -i job-12345       # Success  
+  ./cli stream -i job-12345    # Success
+  ./cli create -c "echo test"  # Permission error
+  ./cli stop -i job-12345      # Permission error
+```
 
 ## Deployment Architecture
 
 ### System Requirements
+
+- **Application Base Directory**: `/opt/job-worker`
 - **Operating System**: Linux with cgroups v2 support
 - **Privileges**: Root access required for cgroup management
 - **Network**: TCP port `50051` accessible for gRPC communications
@@ -232,18 +241,30 @@ TBD
 - **Dependencies**: OpenSSL for certificate operations
 
 ### Certificate Deployment Strategy
+
 1. **Server Setup**: Generate CA and server certificates on target machine
 2. **Client Distribution**: Securely distribute role-specific client certificates
 3. **Permission Management**: Proper file permissions (`600` for keys, `644` for certs)
 4. **Role Assignment**: Map organizational roles to certificate types
 
 ### Configuration Management
+
 - **Cgroup Base Directory**: `/sys/fs/cgroup/job-worker/`
 - **Certificate Directory**: `/opt/job-worker/certs/`
-- **Log Directory**: `/var/log/job-worker/` (for goroutine monitoring)
 
 ## Current Limitations
+
 - **In-Memory Storage**: No persistence across server restarts
 - **Single Node Operation**: No distributed execution capabilities
 - **Static Role Assignment**: Certificate-based roles cannot be changed at runtime
 - **Limited Resource Monitoring**: No real-time resource usage metrics
+
+## Future Enhancements
+
+### Potential Improvements
+
+* **Persistent Storage:** Database backend for job history
+* **Job Queuing / Scheduling:** Multi-job scheduling and prioritization
+* **Metrics Collection:** Prometheus/OpenTelemetry integration
+* **Web Dashboard:** HTTP interface for job management
+* **Resource Monitoring:** Real-time resource usage tracking
