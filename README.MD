@@ -49,7 +49,7 @@ real-time log streaming and comprehensive job lifecycle management.
 * **Stream Subscribers:** Auto-cleanup of stalled/slow subscribers (5s timeout)
 * **Resource Cleanup:** Async cgroup cleanup with timeout protection
 * **Graceful Shutdown:** Signal handling for clean server termination
-* **Certificate Validation:** Multiple fallback methods for role extraction (OU, SAN, CN)
+* **Certificate Validation:** Organization Unite
 
 ## API Design
 
@@ -58,16 +58,77 @@ real-time log streaming and comprehensive job lifecycle management.
 ```protobuf
 syntax = "proto3";
 
-service JobService {
-  rpc CreateJob(Job) returns (Job) {}                     // Admin only
-  rpc GetJob(JobReq) returns (Job) {}                     // Admin + Viewer
-  rpc StopJob(JobReq) returns (Job) {}                    // Admin only
-  rpc GetJobs(EmptyRequest) returns (Jobs) {}             // Admin + Viewer
-  rpc GetJobsStream(JobReq) returns (stream DataChunk) {} // Admin + Viewer
+service JobService{
+  rpc CreateJob(CreateJobReq) returns (CreateJobRes){}            // Admin only
+  rpc GetJob(GetJobReq) returns (GetJobRes){}                     // Admin + Viewer
+  rpc StopJob(StopJobReq) returns (StopJobRes){}                  // Admin only
+  rpc GetJobsStream(GetJobsStreamReq) returns (stream DataChunk); // Admin + Viewer
 }
+
+// CreateJob
+message CreateJobReq{
+  string command = 1;
+  repeated string args = 2;
+  int32 maxCPU = 3;
+  int32 maxMemory = 4;
+  int32 maxIOBPS = 5;
+}
+
+message CreateJobRes{
+  string id = 1;
+  string command = 2;
+  repeated string args = 3;
+  int32 maxCPU = 4;
+  int32 maxMemory = 5;
+  int32 maxIOBPS = 6;
+  string status = 7;
+  string startTime = 8;
+  string endTime = 9;
+  int32 exitCode = 10;
+}
+
+// GetJob
+message GetJobReq{
+  string id = 1;
+}
+
+message GetJobRes{
+  string id = 1;
+  string command = 2;
+  repeated string args = 3;
+  int32 maxCPU = 4;
+  int32 maxMemory = 5;
+  int32 maxIOBPS = 6;
+  string status = 7;
+  string startTime = 8;
+  string endTime = 9;
+  int32 exitCode = 10;
+}
+
+// StopJob
+message StopJobReq{
+  string id = 1;
+}
+
+message StopJobRes{
+  string id = 1;
+  string status = 2;
+  string endTime = 3;
+  int32 exitCode = 4;
+}
+
+// GetJobsStream
+message GetJobsStreamReq{
+  string id = 1;
+}
+
+message DataChunk {
+  bytes payload = 1;
+}
+
 ```
 
-### Job Model
+### Job Model (internal use)
 
 ```protobuf
 message Job {
@@ -77,14 +138,25 @@ message Job {
   int32 maxCPU = 4;             // CPU limit in percent (default: 10%)
   int32 maxMemory = 5;          // Memory limit in MB (default: 1MB)
   int32 maxIOBPS = 6;           // IO limit in bytes/second (0 = unlimited)
-  string status = 7;            // RUNNING, COMPLETED, STOPPED
+  string status = 7;            // RUNNING, COMPLETED, STOPPED, FAILED
   int32 pid = 8;                // Process ID (when running)
-  string cgroupPath = 9;        // Cgroup directory path
+  string cgroupPath = 9;        // Cgroup directory path (internally used by application)
   string startTime = 10;        // RFC3339 timestamp
   string endTime = 11;          // RFC3339 timestamp
   int32 exitCode = 12;          // Process exit code
 }
 ```
+### Field Ownership
+
+* **Client-Provided:** `command`, `args`, `maxCPU`, `maxMemory`, `maxIOBPS`
+* **Server-Managed:** `id`, `status`, `pid`, `cgroupPath`, `startTime`, `endTime`, `exitCode`, `createdAt`
+
+### Default Resource Limits
+
+* **CPU:** `10%` of one core
+* **Memory:** `1MB`
+* **I/O:** Unlimited (`0`)
+
 
 ### Authorization Chart
 
@@ -93,7 +165,6 @@ message Job {
 | CreateJob  | ALLOW      | DENY        | Start new jobs with resource limits |
 | GetJob     | ALLOW      | ALLOW       | Retrieve job details and status     |
 | StopJob    | ALLOW      | DENY        | Terminate running jobs              |
-| GetJobs    | ALLOW      | ALLOW       | List all jobs with basic info       |
 | StreamLogs | ALLOW      | ALLOW       | Real-time log streaming             |
 
 ## Security Architecture
@@ -122,7 +193,6 @@ message Job {
 
 - **Version**: TLS 1.3 minimum
 - **Authentication**: Mutual TLS with mandatory client certificates
-- **Cipher Suites**: Modern `ECDHE with AES-GCM` and `ChaCha20-Poly1305`
 - **Key Strengths**: `4096-bit` CA, `2048-bit` clients keys (admin/viewer)
 - **Certificate Lifetime**: `365` days with renewal processes
 
@@ -139,6 +209,41 @@ message Job {
 ### Real-Time Log Streaming
 
 ![Log Streaming Flow](docs/job-worker-log-streaming-flow.drawio.png)
+
+**Pub-Sub Implementation Details**:
+
+The system implements an in-memory pub-sub mechanism without external message brokers:
+
+1. **Task-Level Subscribers**: Each Task (Task: is a wrapper around the job) maintains its own subscriber list
+
+2. **Subscription Management**:
+    - **Subscribe**: Creates buffered channel, adds to subscriber list
+    - **Unsubscribe**: Removes channel from list, closes channel
+    - **Auto-cleanup**: Detects stalled subscribers (`5s` timeout), removes automatically
+
+3. **Message Flow**:
+    - Process Output → `io.Writer` publish (Update) → Subscriber Channels
+    - **Update:** Contains the:
+      - JobId
+      - LogChunk `[]byte`
+      - Status
+
+4. **Delivery Guarantees**:
+    - **Best Effort**: Non-blocking sends with timeout
+    - **Buffered**: Each subscriber has `50` buffer
+    - **Cleanup**: Slow/dead subscribers automatically removed
+    - **Multiple Subscribers**: Same log chunk delivered to all active subscribers
+
+5. **Thread Safety**:
+    - Copy-on-read pattern for subscriber list during publishing
+    - Atomic operations for subscriber management
+
+6. **Performance Characteristics**:
+    - **Memory**: Bounded by subscriber count × buffer size
+    - **Latency**: Near real-time delivery (microsecond publishing)
+    - **Throughput**: Limited by slowest subscriber (with timeout protection)
+    - **Scalability**: O(n) delivery cost
+      - `n` is subscriber count per job
 
 ## Resource Management
 
@@ -177,9 +282,6 @@ message Job {
 ### Concurrent Operations
 
 - **Thread Safety**: Mutex-protected data structures throughout
-- **Streaming Clients**: Up to `50` concurrent subscribers per job
-- **Goroutine Management**: Active monitoring and leak prevention
-- **Buffer Management**: Configurable log buffer sizes (`1000` lines default)
 
 ### Resource Limits and Safeguards
 
@@ -212,21 +314,21 @@ Commands:
 #### Admin Client Operations
 
 ```bash
-  ./cli list                   # Success
-  ./cli get -i job-12345       # Success  
-  ./cli stream -i job-12345    # Success
-  ./cli create -c "echo test"  # Success
-  ./cli stop -i job-12345      # Success
+  ./cli get 12345                 
+  ./cli stream 12345            
+  ./cli create 'for i in {1..1000}; do echo $i; sleep 0.001; done'
+  # or
+  ./cli create 'for i in {1..1000}; do echo $i; sleep 0.001; done' -u 1 -m 1 -i 1
+  ./cli stop 12345
 ```
 
 #### Viewer Client Operations
 
 ```bash
-  ./cli list                   # Success
-  ./cli get -i job-12345       # Success  
-  ./cli stream -i job-12345    # Success
-  ./cli create -c "echo test"  # Permission error
-  ./cli stop -i job-12345      # Permission error
+  ./cli get 12345             # Success  
+  ./cli stream 12345          # Success
+  ./cli create -c "echo test" # Permission error
+  ./cli stop 12345            # Permission error
 ```
 
 ## Deployment Architecture
