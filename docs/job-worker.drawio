@@ -108,12 +108,12 @@
     </mxGraphModel>
   </diagram>
   <diagram id="WPjtbTLtvAoXE5fQFe9T" name="Job Lifecycle">
-    <mxGraphModel dx="846" dy="841" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="817" dy="573" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-8" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#000000;fontColor=#000000;" parent="1" vertex="1">
-          <mxGeometry x="10" y="10" width="270" height="410" as="geometry" />
+          <mxGeometry x="10" y="10" width="270" height="450" as="geometry" />
         </mxCell>
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#000000;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;" parent="1" source="MU5Afl4WIqtkK9BJf8HP-1" target="MU5Afl4WIqtkK9BJf8HP-2" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -133,7 +133,7 @@
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-3" value="Create&amp;nbsp;&lt;span style=&quot;background-color: transparent;&quot;&gt;cgroups with resource&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;limits&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" parent="1" vertex="1">
           <mxGeometry x="27.5" y="120" width="235" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="MU5Afl4WIqtkK9BJf8HP-12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#000000;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;" parent="1" source="MU5Afl4WIqtkK9BJf8HP-4" target="MU5Afl4WIqtkK9BJf8HP-5" edge="1">
+        <mxCell id="MU5Afl4WIqtkK9BJf8HP-12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#000000;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="MU5Afl4WIqtkK9BJf8HP-4" target="RH-s9bniN7YagVXYbkMp-2" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-4" value="Add Stdout/Stderr capture" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" parent="1" vertex="1">
@@ -143,22 +143,28 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-5" value="Add Process to cgroup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" parent="1" vertex="1">
-          <mxGeometry x="75" y="220" width="140" height="30" as="geometry" />
+          <mxGeometry x="75" y="270" width="140" height="30" as="geometry" />
         </mxCell>
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#000000;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;" parent="1" source="MU5Afl4WIqtkK9BJf8HP-6" target="MU5Afl4WIqtkK9BJf8HP-7" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-6" value="Monitor Process Completion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" parent="1" vertex="1">
-          <mxGeometry x="55" y="320" width="180" height="30" as="geometry" />
+          <mxGeometry x="55" y="370" width="180" height="30" as="geometry" />
         </mxCell>
         <mxCell id="MU5Afl4WIqtkK9BJf8HP-7" value="CleanUp Resources" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" parent="1" vertex="1">
-          <mxGeometry x="85" y="370" width="120" height="30" as="geometry" />
+          <mxGeometry x="85" y="420" width="120" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="-lVg5Lsz7Uv6cK5tKWyv-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;" edge="1" parent="1" source="-lVg5Lsz7Uv6cK5tKWyv-1" target="MU5Afl4WIqtkK9BJf8HP-6">
+        <mxCell id="-lVg5Lsz7Uv6cK5tKWyv-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;" parent="1" source="-lVg5Lsz7Uv6cK5tKWyv-1" target="MU5Afl4WIqtkK9BJf8HP-6" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="-lVg5Lsz7Uv6cK5tKWyv-1" value="Start Process&amp;nbsp; by detaching Ptrace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="22.5" y="270" width="245" height="30" as="geometry" />
+        <mxCell id="-lVg5Lsz7Uv6cK5tKWyv-1" value="Start Process&amp;nbsp; by syscall.SIGCONT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" parent="1" vertex="1">
+          <mxGeometry x="22.5" y="320" width="245" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="RH-s9bniN7YagVXYbkMp-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;" edge="1" parent="1" source="RH-s9bniN7YagVXYbkMp-2" target="MU5Afl4WIqtkK9BJf8HP-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="RH-s9bniN7YagVXYbkMp-2" value="syscall.SIGSTOP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#000000;sketch=1;curveFitting=1;jiggle=2;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="75" y="220" width="140" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

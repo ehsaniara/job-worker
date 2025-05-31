@@ -205,6 +205,13 @@ message Job {
 
 ![Job Lifecycle](docs/job-worker-job-lifecycle.drawio.png)
 
+- Create cgroups first
+- Start process, using `cmd.Start()`
+- IMMEDIATELY suspend the process before it can do anything, using`syscall.SIGSTOP`
+  - **Note: Tiny race windows:** Process can execute a few CPU instructions before `SIGSTOP` arrives
+- Add suspended process to cgroup
+- Resume process that it's safely in cgroup, using`syscall.SIGCONT`
+
 ### Real-Time Log Streaming
 
 ![Log Streaming Flow](docs/job-worker-log-streaming-flow.drawio.png)
