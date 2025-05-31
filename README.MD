@@ -16,7 +16,6 @@ real-time log streaming and comprehensive job lifecycle management.
 * **Graceful Degradation:** Continue operation even if some resource controls fail
 * **Pub/Sub Architecture:** Decouple log collection from distribution using publisher-subscriber pattern
 
-
 ## System Architecture
 
 ### High-Level Architecture
@@ -146,6 +145,7 @@ message Job {
   int32 exitCode = 12;          // Process exit code
 }
 ```
+
 ### Field Ownership
 
 * **Client-Provided:** `command`, `args`, `maxCPU`, `maxMemory`, `maxIOBPS`
@@ -156,7 +156,6 @@ message Job {
 * **CPU:** `10%` of one core
 * **Memory:** `1MB`
 * **I/O:** Unlimited (`0`)
-
 
 ### Authorization Chart
 
@@ -224,9 +223,9 @@ The system implements an in-memory pub-sub mechanism without external message br
 3. **Message Flow**:
     - Process Output → `io.Writer` publish (Update) → Subscriber Channels
     - **Update:** Contains the:
-      - JobId
-      - LogChunk `[]byte`
-      - Status
+        - JobId
+        - LogChunk `[]byte`
+        - Status
 
 4. **Delivery Guarantees**:
     - **Best Effort**: Non-blocking sends with timeout
@@ -243,7 +242,26 @@ The system implements an in-memory pub-sub mechanism without external message br
     - **Latency**: Near real-time delivery (microsecond publishing)
     - **Throughput**: Limited by slowest subscriber (with timeout protection)
     - **Scalability**: O(n) delivery cost
-      - `n` is subscriber count per job
+        - `n` is subscriber count per job
+
+#### Real-Time Log Streaming (Running)
+
+![job-worker-log-running.drawio.png](docs/job-worker-log-running.drawio.png)
+
+- Client start the stream
+- First retrieve existing logs (Historical)
+- Subscribe to job's log (If job is RUNNING)
+- Stream the logs to client as logs are showing up to channel
+- End the stream when status is not RUNNING
+
+#### Real-Time Log Streaming (Non-Running)
+
+![job-worker-log-non-running.drawio.png](docs/job-worker-log-non-running.drawio.png)
+
+- Client start the stream
+- Retrieve existing logs (Historical)
+- Subscribe to job's log
+- End the stream since job not RUNNING
 
 ## Resource Management
 
